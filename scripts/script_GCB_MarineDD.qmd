@@ -45,6 +45,7 @@ library(cowplot)
 library(viridis)
 library(ggimage)
 library(ggtext)
+library(rsvg)
 
 library(gt)
 library(iNEXT)
@@ -474,8 +475,9 @@ theme(
   xlab("Time") +
   ylab("Habitat Suitability")
 
+fig5
 
-#ggsave(here("figs", "MainFigs", "Figure5_SuitabilitySp.svg"), bg = "white",fig5, width = 40, height =18, dpi = 300)
+#ggsave(here("figs", "MainFigs", "Figure5_SuitabilitySp.png"), bg = "white",fig5, width = 40, height =18, dpi = 300)
 ```
 
 ## Temperature data
@@ -499,6 +501,7 @@ fig_temp <-
   theme_minimal()+my_theme
 
 
+fig_temp
 #ggsave(here("figs", "SuppFigs", "FigTemp.png"), bg = "white",fig_temp, units = "cm", height =20, width =34, dpi = 300)
 
 
@@ -1630,64 +1633,64 @@ suit_obsdd
 
 ```{r}
 
-# rt<-rast(here("data", "CopernicusTempDepth.nc"))
-# 
-# dates <- time(rt)
-# 
-# # Extract years from dates
-# years <- format(dates, "%Y")
-# 
-# # Create an index for each year
-# depth_levels <- c(25:40)
-# 
-# 
-# # Annual mean temperature for each year and depth
-# annual_means <- expand_grid(year = unique(years), depth = depth_levels) %>%
-#   pmap(~ {
-#     year <- ..1
-#     depth <- ..2
-#     layers_of_year <- which(years == year)
-#     yearly_stack <- rt[[layers_of_year]]
-#     depth_layers <- yearly_stack[[seq(depth, nlyr(yearly_stack), by = length(depth_levels))]]
-#     annual_mean <- mean(depth_layers, na.rm = TRUE)
-#     annual_mean
-#   }) %>%
-#   rast()
-# 
+rt<-rast(here("data", "CopernicusTempDepth.nc"))
+
+dates <- time(rt)
+
+# Extract years from dates
+years <- format(dates, "%Y")
+
+# Create an index for each year
+depth_levels <- c(25:40)
+
+
+# Annual mean temperature for each year and depth
+annual_means <- expand_grid(year = unique(years), depth = depth_levels) %>%
+  pmap(~ {
+    year <- ..1
+    depth <- ..2
+    layers_of_year <- which(years == year)
+    yearly_stack <- rt[[layers_of_year]]
+    depth_layers <- yearly_stack[[seq(depth, nlyr(yearly_stack), by = length(depth_levels))]]
+    annual_mean <- mean(depth_layers, na.rm = TRUE)
+    annual_mean
+  }) %>%
+  rast()
+#
 # # Names based on years and depths
-# layer_names <- expand_grid(year = unique(years), depth = depth_levels) %>%
-#   pmap_chr(~ glue::glue("Year_{..1}_Depth_{..2}"))
-# 
-# names(annual_means) <- layer_names
-# 
-# # Annual means stack to a data frame
-# annual_means_df <- as.data.frame(annual_means, xy = TRUE)
-# 
-# annual_means_long <- annual_means_df %>%
-#   pivot_longer(cols = -c(x, y),
-#                names_to = c("Year", "Depth"),
-#                names_sep = "_Depth_",
-#                values_to = "Temperature") %>%
-#   mutate(Title = glue::glue("Sea temperature in Year {Year} at Depth {Depth}"))
-# 
-# # ######## Map Figure Temperature ################
-# # 
-# annual_means_df <- as.data.frame(annual_means, xy = TRUE) %>%
-#   pivot_longer(cols = starts_with("Year"), names_to = "Year_Depth", values_to = "Temperature")
-# # 
-# # # Separate the "Year_Depth" into "Year" and "Depth"
-# annual_means_df <- annual_means_df %>%
-#   separate(Year_Depth, into = c("Year", "Depth"), sep = "_Depth_") %>%
-#   mutate(Year = gsub("Year_", "", Year))  # Clean up "Year_" prefix
-# 
-# annual_means_df <- annual_means_df %>%
-#   mutate(Year = as.numeric(Year)) %>%
-#   filter(
-#     x >= 1.2, x <= 4.4,
-#     y >= 54.2, y <= 55.5
-#   ) %>%
-#   group_by(x,y, Year) %>%
-#   summarise(Temperature = mean(Temperature))
+layer_names <- expand_grid(year = unique(years), depth = depth_levels) %>%
+  pmap_chr(~ glue::glue("Year_{..1}_Depth_{..2}"))
+
+names(annual_means) <- layer_names
+
+# Annual means stack to a data frame
+annual_means_df <- as.data.frame(annual_means, xy = TRUE)
+
+annual_means_long <- annual_means_df %>%
+  pivot_longer(cols = -c(x, y),
+               names_to = c("Year", "Depth"),
+               names_sep = "_Depth_",
+               values_to = "Temperature") %>%
+  mutate(Title = glue::glue("Sea temperature in Year {Year} at Depth {Depth}"))
+
+# ######## Map Figure Temperature ################
+#
+annual_means_df <- as.data.frame(annual_means, xy = TRUE) %>%
+  pivot_longer(cols = starts_with("Year"), names_to = "Year_Depth", values_to = "Temperature")
+#
+# # Separate the "Year_Depth" into "Year" and "Depth"
+annual_means_df <- annual_means_df %>%
+  separate(Year_Depth, into = c("Year", "Depth"), sep = "_Depth_") %>%
+  mutate(Year = gsub("Year_", "", Year))  # Clean up "Year_" prefix
+
+annual_means_df <- annual_means_df %>%
+  mutate(Year = as.numeric(Year)) %>%
+  filter(
+    x >= 1.2, x <= 4.4,
+    y >= 54.2, y <= 55.5
+  ) %>%
+  group_by(x,y, Year) %>%
+  summarise(Temperature = mean(Temperature))
 
 #saveRDS(annual_means_df, here("rdsFiles", "tempMap.RDS"))
 
