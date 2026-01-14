@@ -47,9 +47,6 @@ Geographic coordinates of sampling stations.
 `comm_data.csv`
 Community data including species occurrences by station and year.
 
-`CopernicusTempDepth.nc`
-Sea bottom temperature data (25–40 m depth) for the North Sea, downloaded from the Copernicus Marine Environment Monitoring Service (CMEMS).
-
 `trait_df.csv`
 Species trait data, including body size and motility.
 
@@ -74,7 +71,7 @@ Examples include:
 
 GBIF-derived taxonomic information (e.g. phylum assignment)
 
-Processed temperature data extracted for sampling stations
+Processed temperature data
 
 `scripts/`
 
