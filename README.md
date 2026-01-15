@@ -91,7 +91,6 @@ Quarto document containing the full analysis workflow, including:
 
 - figures
 
-
 `renv/`
 
 Project-specific R environment managed with renv.
@@ -100,7 +99,7 @@ This ensures package versions are fixed and analyses remain reproducible over ti
 
 ## Data sources and notes
 
-Analyses were developed and run using R version 4.4.0.
+Analyses were developed and run using R version 4.4.0. Make sure you are not using an older version.
 
 Temperature data were obtained from the Copernicus Marine Environment Monitoring Service (CMEMS).
 
