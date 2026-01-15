@@ -96,7 +96,7 @@ Processed temperature data
 Scripts used to run all analyses and generate figures.
 
  `script_GCB_MarineDD.qmd`
-```
+
 
 Quarto document containing the full analysis workflow, including:
 
@@ -105,6 +105,7 @@ suitability and dark diversity estimation;
 trait-based analyses; 
 statistical models; 
 figures
+```
 
 `renv/`
 
