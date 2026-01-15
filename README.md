@@ -26,6 +26,9 @@ scripts/script_GCB_MarineDD.qmd
 ```
 
 ## Repository structure
+
+```text
+
 ├── data/
 ├── figs/
 │   ├── MainFigs/
@@ -35,6 +38,8 @@ scripts/script_GCB_MarineDD.qmd
 ├── renv/
 ├── scripts/
 └── README.md
+
+```
 
 ## Folder descriptions
 - `data/`
