@@ -42,7 +42,11 @@ scripts/script_GCB_MarineDD.qmd
 ```
 
 ## Folder descriptions
+
+
 - `data/`
+
+```text
 
 Input datasets used in the analyses.
 
@@ -54,21 +58,27 @@ Community data including species occurrences by station and year.
 
 `trait_df.csv`
 Species trait data, including body size and motility.
+```
 
 - `figs/`
 
+```text
+
 Figures generated for the manuscript.
 
-  - `MainFigs/`
+  `MainFigs/`
 Final versions of figures included in the main text (except Figure 1, which was created using Inkscape).
 
-  - `SuppFigs/`
+  `SuppFigs/`
 Supplementary figures.
 
-  - `silhouettes/`
+  `silhouettes/`
 SVG silhouette files used for species illustrations (e.g. Figure 5).
+```
 
-`rdsFiles/`
+- `rdsFiles/`
+
+```text
 
 Intermediate .rds objects used in the analyses to avoid repeated data processing.
 
@@ -77,29 +87,29 @@ Examples include:
 GBIF-derived taxonomic information (e.g. phylum assignment)
 
 Processed temperature data
+```
+- `scripts/`
 
-`scripts/`
+```text
+
 
 Scripts used to run all analyses and generate figures.
 
-`script_GCB_MarineDD.qmd`
+ `script_GCB_MarineDD.qmd`
+```
 
 Quarto document containing the full analysis workflow, including:
 
-- data processing
-
-- suitability and dark diversity estimation
-
-- trait-based analyses
-
-- statistical models
-
-- figures
+data processing; 
+suitability and dark diversity estimation; 
+trait-based analyses; 
+statistical models; 
+figures
 
 `renv/`
 
 Project-specific R environment managed with renv.
-This ensures package versions are fixed and analyses remain reproducible over time.
+This ensures package versions are fixed and analyses remain reproducible.
 
 
 ## Data sources and notes
