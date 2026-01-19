@@ -330,189 +330,13 @@ trend_summary <- model_summaries %>%
 rmarkdown::paged_table(trend_summary)
 ```
 
-## Species' suitability figures
 
-```{r spSuitPlots}
-
-df_obs_with_trend <- df_obsval %>%
-  left_join(model_summaries %>% dplyr::select(sp, trend), by = "sp")
-
-# Species and silhouette file paths
-species_list <- c(
-  # increasing
-  "Ammodytes tobianus", "Flustra foliacea", "Microstomus kitt", 
-  "Necora puber", "Pleuronectes platessa", "Luidia ciliaris",
-  # decreasing
-  "Aphrodita aculeata", "Chelidonichthys lucerna", "Echiichthys vipera",
-  "Eutrigla gurnardus", "Gadus morhua", "Merlangius merlangus",
-  # stable
-  "Atelecyclus rotundatus", "Callionymus maculatus", 
-  "Liocarcinus marmoreus", "Liocarcinus pusillus", 
-  "Pandalus montagui", "Donax vittatus"
-)
-
-normalize_name <- function(x) tolower(gsub(" ", "_", x))
-
-species_files <- tibble(
-  sp = species_list,
-  file = paste0(here(), "/figs/sillhouettes/", normalize_name(species_list), ".svg")
-)
-
-# Filter to target species
-df_top5 <- df_obs_with_trend %>%
-  mutate(trend = case_when(trend == "non-significant" ~ "stable", TRUE ~ trend)) %>%
-  filter(sp %in% species_list)
-
-# Silhouette positions
-sil_pos_plot <- species_files %>%
-  mutate(file_exists = file.exists(file)) %>%
-  filter(file_exists) %>%
-  left_join(
-    df_top5 %>%
-      group_by(sp, trend) %>%
-      summarise(
-        x = 2021,
-        y_top = 1,
-        y_bottom = 0.1,
-        .groups = "drop"
-      ),
-    by = "sp"
-  ) %>%
-  mutate(
-    y = ifelse(trend == "increasing", y_bottom, y_top)
-  ) %>%
-  dplyr::select(sp, trend, x, y, file)
-
-# Facet ordering
-sp_order <- df_top5 %>%
-  distinct(trend, sp) %>%
-  arrange(factor(trend, levels = c("decreasing", "increasing", "stable"))) %>%
-  pull(sp)
-
-df_top5 <- df_top5 %>%
-  mutate(
-    trend = factor(trend, levels = c("decreasing", "increasing", "stable")),
-    sp = factor(sp, levels = sp_order)
-  )
-
-model_preds_top5 <- model_summaries %>%
-  filter(sp %in% species_list) %>%
-  mutate(
-    trend = factor(trend, levels = c("decreasing", "increasing", "stable")),
-    sp = factor(sp, levels = sp_order)
-  )
-
-sil_pos_plot <- sil_pos_plot %>%
-  mutate(
-    trend = factor(trend, levels = c("decreasing", "increasing", "stable")),
-    sp = factor(sp, levels = sp_order)
-  )
-
-# Final figure
-fig5 <- df_top5 %>% ggplot(aes(x=year, y=values, group = sp, color = trend)) +
-  
-  geom_point(
-    
-    alpha = 0.05, size = 3
-  ) +
-  geom_smooth(method = "lm") +
- scale_color_manual(
-  name = NULL,
-  values = c(
-    "increasing" = "#7B68EE",
-    "decreasing" = "#228B22",
-    "stable"     = "#999999"
-  ),
-  labels = c(
-    "increasing" = "Increasing",
-    "decreasing" = "Decreasing",
-    "stable"     = "Stable"
-  )
-) +
-scale_fill_manual(
-  name = NULL,
-  values = c(
-    "increasing" = "#7B68EE",
-    "decreasing" = "#228B22",
-    "stable"     = "#999999"
-  ),
-  labels = c(
-    "increasing" = "Increasing",
-    "decreasing" = "Decreasing",
-    "stable"     = "Stable"
-  )
-)+
-  facet_wrap(~ sp, nrow = 3, ncol = 6) +
-  geom_image(
-    data = sil_pos_plot,
-    aes(x = x, y = y, image = file),
-    inherit.aes = FALSE,
-    size = 0.25
-  ) +
-  coord_cartesian(ylim = c(0, 1), clip = "off") +
-  theme_classic(base_size = 20) +
-theme(
-  legend.title = element_text(size = 22, face = "bold"),
-  legend.text = element_text(size = 38),
-  legend.key.size = unit(2.5, "lines"),
-  legend.position = "top",
-  plot.margin = margin(10, 30, 10, 10),
-  strip.text = element_text(size = 30, face = "bold"),
-  strip.background = element_blank(),
-  axis.title = element_text(size = 44),
-  axis.text = element_text(size = 36),
-  plot.title = element_text(size = 40, face = "bold"),
-  panel.spacing.x = unit(2, "lines"),   
-  panel.spacing.y = unit(1, "lines")      
-)+guides(
-  color = guide_legend(override.aes = list(size = 10, alpha = 0.4)),
-  fill  = guide_legend(override.aes = list(size = 10, alpha = 0.4))
-) +
-theme(
-  legend.text = element_text(size = 44),
-  legend.key.size = unit(3.5, "lines")
-)+
-  xlab("Time") +
-  ylab("Habitat Suitability")
-
-fig5
-
-#ggsave(here("figs", "MainFigs", "Figure5_SuitabilitySp.png"), bg = "white",fig5, width = 40, height =18, dpi = 300)
-```
-
-## Temperature data
-
-```{r}
-
-combined_df <- readRDS(here::here("rdsFiles", "TempCopernicus25-40m.RDS"))
-
-fig_temp <- 
-  combined_df |> 
-  distinct(Year, sampling, .keep_all = T) %>%
-  ggplot(aes(x = Year, y = meanTemp)) +
-  geom_point(alpha=.2) +
-  geom_smooth(method = "gam",
-              formula = y ~ s(x, bs = "cr", k=6),
-              colour = "red",
-              fill = "red") +
-  # #geom_smooth(method = "lm")+
-  ylab("Mean Temperature (°C)") +
-  xlab("Time")+
-  theme_minimal()+my_theme
-
-
-fig_temp
-#ggsave(here("figs", "SuppFigs", "FigTemp.png"), bg = "white",fig_temp, units = "cm", height =20, width =34, dpi = 300)
-
-
-
-```
 
 ## Preparing the data - Models
 
 ```{r}
 
-
+combined_df <- readRDS(here::here("rdsFiles", "TempCopernicus25-40m.RDS")) # rds file to use temperature in the models
 
 suit_fig <- obs_suit %>%
   rename(species = sp) |>
@@ -587,196 +411,7 @@ suitSize <- suitSize_fig2.3 |> filter(div == "obs")
 
 ```
 
-## Species level
 
-```{r}
-
-mod_traits <- lmer(
-  car::logit(values) ~ 
-    meanTemp * year +
-    body_size * year +
-    mobility * year +
-    meanTemp * body_size +
-    meanTemp * mobility +
-    (1 | phylum/species) + (1 | sampling),
-  data = suitSize
-)
-
-# Check for collinearity
-car::vif(mod_traits)
-
-# Extract and tidy fixed effects
-
-fixed_effects <- broom.mixed::tidy(mod_traits, effects = "fixed", conf.int = TRUE) %>%
-  filter(term != "(Intercept)") %>%
-  mutate(sig = p.value <= 0.05)
-
-# Clean up and label terms
-
-fixed_effects_clean <- fixed_effects %>%
-  mutate(
-    trait = case_when(
-      str_detect(term, "body_size") ~ "Body Size",
-      str_detect(term, "mobility") ~ "Motility",
-      TRUE ~ "General"
-    ),
-    term_clean = case_when(
-      term == "year" ~ "Time",
-      term == "meanTemp" ~ "Temperature",
-      term == "body_size" ~ "Trait (Body Size)",
-      term == "mobility" ~ "Trait (Motility)",
-      term == "meanTemp:year" ~ "Temperature:Time",
-      term == "year:body_size" ~ "Time:Body Size",
-      term == "meanTemp:body_size" ~ "Temperature:Body Size",
-      term == "year:mobility" ~ "Time:Motility",
-      term == "meanTemp:mobility" ~ "Temperature:Motility",
-      TRUE ~ term
-    )
-  ) %>%
-  mutate(
-    term_clean = factor(term_clean, levels = c(
-      "Temperature:Time",
-      "Temperature:Body Size", "Temperature:Motility",
-      "Time:Body Size", "Time:Motility",
-      "Trait (Body Size)", "Trait (Motility)",
-      "Temperature", "Time"
-    )),
-    trait = factor(trait, levels = c("Motility", "Body Size", "General"))
-  )
-
-# Plot fixed effects
-
-
-dodge <- position_dodge(width = 0.6)
-
-catPlotSuitTrait <- ggplot(fixed_effects_clean, aes(x = estimate, y = term_clean, color = trait)) +
-  geom_point(aes(alpha = sig), position = dodge, size = 3) +
-  geom_errorbarh(
-    aes(xmin = conf.low, xmax = conf.high, alpha = sig),
-    position = dodge,
-    height = 0.15
-  ) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
-  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.08), guide = "none") +
-  scale_color_manual(values = c(
-    "Motility" = "#A0522D",
-    "Body Size" = "#008080",
-    "General" = "gray40"
-  )) +
-  labs(x = "Estimate", y = "", color = "") +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "right",
-        panel.grid = element_blank())
-
-catPlotSuitTrait
-
-
-# ggsave(here("figs", "MainFigs", "Fig_Traits_Combined.png"), plot = catPlotSuitTrait, bg = "white", width = 10, height = 6, dpi = 300)
-
-
-```
-
-## Interactions
-
-```{r}
-
-YearTempInt <- ggpredict(mod_traits, terms = c("year", "meanTemp")) |>
-  as.data.frame() %>%
-  mutate(group = case_when(group == "-1.04" ~ "-1",
-                           group == "-0.03" ~ "0",
-                           group == "0.97" ~ "+1",
-                           )) %>%
-  ggplot( aes(x = x, y = predicted, color = group, fill = group)) +
-   labs(x = "Year", y = "Predicted suitability", color = "Temperature") +
-  geom_line(linewidth = 1)+
-  
-  scale_color_discrete(direction = -1) +
-  scale_fill_discrete(direction = -1)+
-  theme_minimal(base_size = 13) + my_theme
-
-# Predicted interaction: YEAR × MOBILITY
-YearMot <- ggpredict(mod_traits, terms = c("year", "mobility")) |>
-  as.data.frame() |>
-  mutate(
-    Motility = ifelse(group == "-2.12639114724577", "Sessile", "Mobile")
-  )
-
-yearMobInt <- ggplot(YearMot, aes(x = x, y = predicted, color = Motility, fill = Motility)) +
-  geom_line(linewidth = 1) +
-  labs(x = "Year", y = "Predicted suitability", color = "Motility", fill = "Motility") +
-  scale_color_manual(values = c("Sessile" = "darkgreen", "Mobile" = "steelblue")) +
-  scale_fill_manual(values = c("Sessile" = "darkgreen", "Mobile" = "steelblue")) +
-  theme_minimal(base_size = 13) + my_theme
-
-# Predicted interaction: YEAR × BODY SIZE
-YearBS <- ggpredict(mod_traits, terms = c("year", "body_size")) |>
-  as.data.frame()
-
-yearBSInt <- ggplot(YearBS, aes(x = x, y = predicted, color = group, fill = group)) +
-  geom_line(linewidth = 1) +
-  labs(x = "Year", y = "Predicted suitability", color = "Body Size") +
-  
-  scale_color_discrete(direction = -1) +
-  scale_fill_discrete(direction = -1)+
-  theme_minimal(base_size = 13) + my_theme
-
-
-combIntFig <- plot_grid(
-  
-  YearTempInt,
-  yearBSInt,
-  yearMobInt,
-  
-  labels = c("A", "B", "C", "D"),
-  ncol = 3
-)
-
-
-#ggsave(here("figs", "SuppFigs", "SuppFigBS-MOT-TEMP.png"), bg = "white", combIntFig, units="cm", height =16, width =54, dpi = 300)
-
-```
-
-## Table sp Suitability/Trait
-
-```{r}
-
-
-mod_tidy <- tidy(mod_traits, effects = "fixed", conf.int = TRUE)
-
-summaryMod <- model_parameters(mod_traits) %>%
-  dplyr::select(Parameter, Coefficient, CI_low, CI_high, p) 
-
-combinedSumm <- summaryMod %>%
-  mutate(
-    p_display = ifelse(p < 0.001, "< 0.001", sprintf("%.3f", p)),
-    sig = p <= 0.05
-  )
-
-combinedSumm %>%
- dplyr::select( Parameter, Coefficient, CI_low, CI_high, p_display, sig) %>%
-  mutate(Parameter = gsub(":", " × ", Parameter)) %>%
-  gt() %>%
-  tab_header(
-    title = "Mixed-Effects Model Summary",
-    subtitle = "Observed and Dark Diversity Models"
-  ) %>%
-  fmt_number(columns = c("Coefficient", "CI_low", "CI_high"), decimals = 3) %>%
-  cols_label(
-    Parameter = "Term",
-    Coefficient = "Estimate",
-    CI_low = "CI Lower",
-    CI_high = "CI Upper",
-    p_display = "p-value"
-  ) %>%
-  tab_style(
-    style = cell_text(weight = "bold"),
-    locations = cells_body(
-      columns = "p_display",
-      rows = sig == TRUE
-    )
-  )
-
-```
 
 ## Community level
 
@@ -817,136 +452,6 @@ mod_lmerDivDDComm<- lmer(n_sp ~ meanTemp*year+
 ```
 
 
-```{r}
-
-fixed_effectsDDComm <- broom.mixed::tidy(mod_lmerDivDDComm, effects = "fixed", conf.int = TRUE) |> 
-  filter(!term == "(Intercept)")
-
-# Extract fixed effects estimates and confidence intervals
-
-fixed_effectsComm$div <- "Observed"
-fixed_effectsDDComm$div <- "Dark"
-
-fixed_effects_all <- bind_rows(fixed_effectsComm, fixed_effectsDDComm)
-
-fixed_effects_all_lab <- fixed_effects_all %>%
-  mutate(sig = p.value <= 0.05) |> 
-  mutate(term = case_when(term == "meanTemp" ~ "Temperature",
-                          term == "year" ~ "Time",
-                          term == "meanTemp:year" ~ "Temperature:Time")) |> 
-  mutate(term = as.factor(term),
-         div = as.factor(div)) %>%
-  mutate(term = fct_relevel(term, "Temperature:Time", "Temperature", "Time"  ),
-         div = fct_relevel(div, "Dark", "Observed"))
-
-dodge <- position_dodge(width = 0.6)
-
-catPlotObsDDComm <- ggplot(fixed_effects_all_lab, aes(x = estimate, y = term, color = div)) +
-  geom_point(size = 3, position = dodge,aes(alpha = sig)) +
-  geom_errorbarh(
-    aes(xmin = conf.low, xmax = conf.high, alpha = sig),
-    height = 0.2,
-    position = dodge
-  ) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
-  scale_color_manual(values = c("Dark" = "steelblue", "Observed" = "darkorange")) +
-  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.08), guide = "none") +
-  labs(x = "Estimate", y = "", color = "") +
-  my_theme +
-  theme(legend.position = "right")
-
-catPlotObsDDComm
-
-#ggsave(here("figs", "MainFigs", "Fig2communityLevelPl.png"),catPlotObsDDComm, bg = "white", width = 24, height = 14, units = "cm", dpi = 300)
-
-
-
-ggeffectTempDD <- ggeffects::ggpredict(mod_lmerDivDDComm, terms = c("year", "meanTemp")) |> 
-  as.data.frame() |> 
-  mutate(group = case_when(group == "-1" ~ "-1",
-                           group == "0" ~ "0",
-                           group == "1" ~ "+1"),
-  group = factor(group, levels = c("-1", "0", "+1"))) |> 
-  
- ggplot(aes(x = x, y = predicted, color = group, fill = group)) +
-  geom_line(linewidth = 1) +ggtitle("Dark diversity")+ ylab("Number of species")+ xlab("Year")+
-  labs(color = "Temperature")+
-  scale_color_discrete(direction = -1) +
-  scale_fill_discrete(direction = -1)+
-  my_theme
-
-ggeffectSalOBS <- ggeffects::ggpredict(mod_lmerDivComm, terms = c( "year","meanTemp")) |> 
-  as.data.frame() |> 
-  mutate(group = case_when(group == "-1" ~ "-1",
-                           group == "0" ~ "0",
-                          group == "1" ~ "+1"),
-  group = factor(group, levels = c("-1", "0", "+1"))) |> 
-  
- ggplot(aes(x = x, y = predicted, color = group, fill = group)) +
-  geom_line(linewidth = 1) +
-  ggtitle("Observed diversity")+
-  ylab("Number of species")+ labs(color = "Temperature")+
-  xlab("Year")+
-  scale_color_discrete(direction = -1) +
-  scale_fill_discrete(direction = -1)+
-  my_theme
-
-
-ggef <- plot_grid(ggeffectSalOBS , ggeffectTempDD)
-
-#ggsave(here("figs", "SuppFigs", "SuppFigModelSuitComm.png"), bg = "white", units="cm", height =18, width =46, dpi = 300)
-
-```
-
-## Table Community
-
-```{r}
-
-obs_summary <- model_parameters(mod_lmerDivComm) %>%
-  dplyr::select(Parameter, Coefficient, CI_low, CI_high, p) %>%
-  mutate(Model = "Observed")
-
-dark_summary <- model_parameters(mod_lmerDivDDComm) %>%
-  dplyr::select(Parameter, Coefficient, CI_low, CI_high, p) %>%
-  mutate(Model = "Dark")
-
-
-combined <- bind_rows(obs_summary, dark_summary)
-
-
-combined <- combined %>%
-  mutate(
-    p_display = ifelse(p < 0.001, "< 0.001", sprintf("%.3f", p)),
-    sig = p < 0.05
-  )
-
-# Create the gt table
-combined %>%
-  dplyr::select(Model, Parameter, Coefficient, CI_low, CI_high, p_display, sig) %>%
-  mutate(Parameter = gsub(":", " × ", Parameter)) %>%
-  gt() %>%
-  tab_header(
-    title = "Mixed-Effects Model Summary",
-    subtitle = "Observed and Dark Diversity Models"
-  ) %>%
-  fmt_number(columns = c("Coefficient", "CI_low", "CI_high"), decimals = 3) %>%
-  cols_label(
-    Model = "Model",
-    Parameter = "Term",
-    Coefficient = "Estimate",
-    CI_low = "CI Lower",
-    CI_high = "CI Upper",
-    p_display = "p-value"
-  ) %>%
-  tab_style(
-    style = cell_text(weight = "bold"),
-    locations = cells_body(
-      columns = "p_display",
-      rows = sig == TRUE
-    )
-  )
-
-```
 
 ## Figure gains-losses
 
@@ -1196,7 +701,7 @@ fig_temp_change <- sp_plot +
         plot.margin = margin(20, 50, 80, 80, unit = "pt")) 
 
 
-fig_temp_change
+#fig_temp_change
 
 
 #ggsave(here("figs", "SuppFigs", "estimatesSp2x2.png"), bg = "white",fig_temp_change, width = 37, height = 25, units = "cm", dpi = 600)
@@ -1229,80 +734,767 @@ imm_cred <- test_mod |>
 
 ```
 
-## Sample coverage
+## Figures
 
-```{r samplecoverage}
-#| warning: false
-#| cache: true
+### Fig2 - Dogger bank map
 
-
-sampleCovarage <- df %>%
-  distinct(year, sampling, sp, values) %>%
-  mutate(values = as.integer(values > 0)) %>%   # incidence
-  split(.$year) %>%
-  map(~ .x %>%
-        pivot_wider(
-          id_cols = sp,
-          names_from = sampling,
-          values_from = values,
-          values_fill = 0
-        ) %>%
-        column_to_rownames("sp")
-  )
-
-SampCv <- iNEXT(
-  sampleCovarage,
-  q = 0,
-  datatype = "incidence_raw"
-)
-
-
-SampCvTable <- SampCv$DataInfo %>%
-  dplyr::select(
-    Year = Assemblage,
-    Sample_Coverage = SC
-  )
-
-rmarkdown::paged_table(SampCvTable)
-
-```
-
-## Sample coverage per site
 
 ```{r}
-## Per site
+# 
+# rt<-rast(here("data", "CopernicusTempDepth.nc"))
+# 
+# dates <- time(rt)
+# 
+# # Extract years from dates
+# years <- format(dates, "%Y")
+# 
+# # Create an index for each year
+# depth_levels <- c(25:40)
+# 
+# 
+# # Annual mean temperature for each year and depth
+# annual_means <- expand_grid(year = unique(years), depth = depth_levels) %>%
+#   pmap(~ {
+#     year <- ..1
+#     depth <- ..2
+#     layers_of_year <- which(years == year)
+#     yearly_stack <- rt[[layers_of_year]]
+#     depth_layers <- yearly_stack[[seq(depth, nlyr(yearly_stack), by = length(depth_levels))]]
+#     annual_mean <- mean(depth_layers, na.rm = TRUE)
+#     annual_mean
+#   }) %>%
+#   rast()
+# #
+# # # Names based on years and depths
+# layer_names <- expand_grid(year = unique(years), depth = depth_levels) %>%
+#   pmap_chr(~ glue::glue("Year_{..1}_Depth_{..2}"))
+# 
+# names(annual_means) <- layer_names
+# 
+# # Annual means stack to a data frame
+# annual_means_df <- as.data.frame(annual_means, xy = TRUE)
+# 
+# annual_means_long <- annual_means_df %>%
+#   pivot_longer(cols = -c(x, y),
+#                names_to = c("Year", "Depth"),
+#                names_sep = "_Depth_",
+#                values_to = "Temperature") %>%
+#   mutate(Title = glue::glue("Sea temperature in Year {Year} at Depth {Depth}"))
+# 
+# # ######## Map Figure Temperature ################
+# #
+# annual_means_df <- as.data.frame(annual_means, xy = TRUE) %>%
+#   pivot_longer(cols = starts_with("Year"), names_to = "Year_Depth", values_to = "Temperature")
+# #
+# # # Separate the "Year_Depth" into "Year" and "Depth"
+# annual_means_df <- annual_means_df %>%
+#   separate(Year_Depth, into = c("Year", "Depth"), sep = "_Depth_") %>%
+#   mutate(Year = gsub("Year_", "", Year))  # Clean up "Year_" prefix
+# 
+# annual_means_df <- annual_means_df %>%
+#   mutate(Year = as.numeric(Year)) %>%
+#   filter(
+#     x >= 1.2, x <= 4.4,
+#     y >= 54.2, y <= 55.5
+#   ) %>%
+#   group_by(x,y, Year) %>%
+#   summarise(Temperature = mean(Temperature))
 
-scSite <- df %>%
-  distinct(year, sampling, sp, values) %>%
-  mutate(values = as.integer(values > 0)) %>%  
-  split(.$sampling) %>%
-  map(~ .x %>%
-        pivot_wider(
-          id_cols = sp,
-          names_from = year,
-          values_from = values,
-          values_fill = 0
-        ) %>%
-        column_to_rownames("sp")
-      )
+#saveRDS(annual_means_df, here("rdsFiles", "tempMap.RDS"))
 
-SampCvSite <- iNEXT(
-  scSite,
-  q = 0,
-  datatype = "incidence_raw"
+annual_means_df <- readRDS(here("rdsFiles", "tempMap.RDS"))
+
+# Temperature difference between first and last year
+first_year <- min(annual_means_df$Year, na.rm = TRUE)
+last_year  <- max(annual_means_df$Year, na.rm = TRUE)
+
+temp_change <- annual_means_df %>%
+  filter(Year %in% c(first_year, last_year)) %>%
+  group_by(x, y) %>%
+  summarise(
+    temp_diff = Temperature[Year == last_year] - Temperature[Year == first_year],
+    .groups = "drop"
+  )
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Inset map
+dogger_box <- data.frame(
+  xmin = 1.2, xmax = 4.4,
+  ymin = 54.2, ymax = 55.5
 )
 
+north_sea <-  data.frame(
+  xmin = -3, xmax = 4.4,
+  ymin = 54.2, ymax = 55.5
+)
 
-SampCvTableSite <- SampCvSite$DataInfo %>%
-  dplyr::select(
-    Site = Assemblage,
-    Sample_Coverage = SC
+# 4. Main map
+main_map <- ggplot() +
+  geom_raster(data = temp_change, aes(x = x, y = y, fill = temp_diff), interpolate = TRUE) +
+  geom_sf(data = world, fill = "grey85", color = "grey60", linewidth = 0.3) +
+  coord_sf(xlim = c(1.2, 4.38), ylim = c(54.2,55.5), expand = FALSE) +
+  geom_point(
+    data = coord_clean,
+    aes(x = longitude, y = latitude),
+    shape = 21, size = 4, stroke = 0.3,
+    color = "black", fill = "white"
+  ) +
+  # Station labels
+  geom_text_repel(
+    data = coord_clean,
+    aes(x = longitude, y = latitude, label = sampling),
+    size = 7.8,
+    color = "black",
+    segment.size = 0.2,
+    box.padding = 0.3,
+    max.overlaps = 100
+  ) +
+  scale_fill_viridis_c(option = "C",
+                        name = expression(Delta~"Temperature (°C)"))+
+  labs(
+  x = "Longitude", y = "Latitude"
+  ) +
+  annotation_scale(location = "bl", width_hint = 0.25, text_cex = 0.8) +
+  annotation_north_arrow(location = "tl", which_north = "true",
+                         style = north_arrow_fancy_orienteering) +
+  theme_minimal(base_size = 26) +
+  theme(
+    legend.position = "bottom",
+    legend.key.width = unit(3.2, "cm"),
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text = element_text(size = 24),
+    plot.title = element_text(face = "bold", size = 26, hjust = 0.5),
+    axis.text = element_text(size = 26),
+    panel.background = element_rect(fill = "aliceblue", color = NA)
+  ) + theme(aspect.ratio = 0.7)
+
+
+#main_map
+
+countries_to_label <- c(
+  "United Kingdom", "Netherlands", "Germany",
+  "Denmark", "Norway", "Belgium", "France"
+) 
+
+world_small <- world %>%
+  filter(name_long %in% countries_to_label) %>%
+  st_transform(crs = 4326)
+
+label_pts <- world_small %>%
+  st_point_on_surface() %>%
+  mutate(
+    lon = st_coordinates(.)[,1],
+    lat = st_coordinates(.)[,2]
   )
 
-rmarkdown::paged_table(SampCvTableSite)
+
+abbr_map <- c(
+  "United Kingdom" = "United Kingdom",
+  "Netherlands"    = "Netherlands",
+  "Germany"        = "Germany",
+  "Denmark"        = "Denmark",
+  "Norway"         = "Norway",
+  "Belgium"        = "Belgium",
+  "France"         = "France"
+)
+
+label_pts2 <- label_pts %>%
+  mutate(abbr = abbr_map[name_long])  %>% 
+    mutate(
+    abbr = abbr_map[name_long],
+    lat = case_when(
+      abbr == "United Kingdom" ~ lat - 1, # just to avoid the overlap with dogger bank's orange box
+      TRUE ~ lat
+    )
+  )
+
+inset_map <- ggplot() +
+  geom_sf(data = world, fill = "grey90", color = "white") +
+  geom_rect(
+    data = dogger_box,
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+    color = "orange", fill = NA, linewidth = 1
+  ) +
+  annotate(
+  "text",
+  x = mean(c(dogger_box$xmin, dogger_box$xmax)),
+  y = dogger_box$ymax + 2.2, 
+  label = "North Sea",
+  size = 7,
+  fontface = "bold",
+  colour = "#4169E1"
+)+
+
+  geom_text(
+    data = label_pts2 %>% st_drop_geometry(),
+    aes(x = lon, y = lat, label = abbr),
+    size = 5, fontface = "bold", color = "black"
+  ) +
+  
+  coord_sf(xlim = c(-10, 13), ylim = c(48, 60), expand = FALSE) +
+  theme_void() +
+  theme(panel.background = element_rect(fill = "aliceblue", color = NA))
+
+final_plot <- ggdraw(xlim = c(0, 1), ylim = c(0, 1)) +   
+  draw_plot(
+    main_map,
+    x = 0, y = 0,
+    width = 1, height = 1
+  ) +
+  draw_plot(
+    inset_map,
+    x = 0.99,   
+    y = 0.217,  
+    width = 0.32,
+    height = 0.32,
+    hjust = 1,
+    vjust = 0   
+  )
+
+final_plot
+
+#ggsave(here("figs", "MainFigs", "MapTempChange.png"), final_plot, units =  "cm", width = 40, height = 30, dpi = 300)
+```
+
+### Fig 3 - Species level
+
+```{r}
+
+mod_traits <- lmer(
+  car::logit(values) ~ 
+    meanTemp * year +
+    body_size * year +
+    mobility * year +
+    meanTemp * body_size +
+    meanTemp * mobility +
+    (1 | phylum/species) + (1 | sampling),
+  data = suitSize
+)
+
+# Check for collinearity
+car::vif(mod_traits)
+
+# Extract and tidy fixed effects
+
+fixed_effects <- broom.mixed::tidy(mod_traits, effects = "fixed", conf.int = TRUE) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(sig = p.value <= 0.05)
+
+# Clean up and label terms
+
+fixed_effects_clean <- fixed_effects %>%
+  mutate(
+    trait = case_when(
+      str_detect(term, "body_size") ~ "Body Size",
+      str_detect(term, "mobility") ~ "Motility",
+      TRUE ~ "General"
+    ),
+    term_clean = case_when(
+      term == "year" ~ "Time",
+      term == "meanTemp" ~ "Temperature",
+      term == "body_size" ~ "Trait (Body Size)",
+      term == "mobility" ~ "Trait (Motility)",
+      term == "meanTemp:year" ~ "Temperature:Time",
+      term == "year:body_size" ~ "Time:Body Size",
+      term == "meanTemp:body_size" ~ "Temperature:Body Size",
+      term == "year:mobility" ~ "Time:Motility",
+      term == "meanTemp:mobility" ~ "Temperature:Motility",
+      TRUE ~ term
+    )
+  ) %>%
+  mutate(
+    term_clean = factor(term_clean, levels = c(
+      "Temperature:Time",
+      "Temperature:Body Size", "Temperature:Motility",
+      "Time:Body Size", "Time:Motility",
+      "Trait (Body Size)", "Trait (Motility)",
+      "Temperature", "Time"
+    )),
+    trait = factor(trait, levels = c("Motility", "Body Size", "General"))
+  )
+
+# Plot fixed effects
+
+
+dodge <- position_dodge(width = 0.6)
+
+catPlotSuitTrait <- ggplot(fixed_effects_clean, aes(x = estimate, y = term_clean, color = trait)) +
+  geom_point(aes(alpha = sig), position = dodge, size = 3) +
+  geom_errorbarh(
+    aes(xmin = conf.low, xmax = conf.high, alpha = sig),
+    position = dodge,
+    height = 0.15
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.08), guide = "none") +
+  scale_color_manual(values = c(
+    "Motility" = "#A0522D",
+    "Body Size" = "#008080",
+    "General" = "gray40"
+  )) +
+  labs(x = "Estimate", y = "", color = "") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "right",
+        panel.grid = element_blank())
+
+catPlotSuitTrait
+
+
+# ggsave(here("figs", "MainFigs", "Fig_Traits_Combined.png"), plot = catPlotSuitTrait, bg = "white", width = 10, height = 6, dpi = 300)
 
 
 ```
+
+
+
+### Fig 4
+
+```{r}
+
+fixed_effectsDDComm <- broom.mixed::tidy(mod_lmerDivDDComm, effects = "fixed", conf.int = TRUE) |> 
+  filter(!term == "(Intercept)")
+
+# Extract fixed effects estimates and confidence intervals
+
+fixed_effectsComm$div <- "Observed"
+fixed_effectsDDComm$div <- "Dark"
+
+fixed_effects_all <- bind_rows(fixed_effectsComm, fixed_effectsDDComm)
+
+fixed_effects_all_lab <- fixed_effects_all %>%
+  mutate(sig = p.value <= 0.05) |> 
+  mutate(term = case_when(term == "meanTemp" ~ "Temperature",
+                          term == "year" ~ "Time",
+                          term == "meanTemp:year" ~ "Temperature:Time")) |> 
+  mutate(term = as.factor(term),
+         div = as.factor(div)) %>%
+  mutate(term = fct_relevel(term, "Temperature:Time", "Temperature", "Time"  ),
+         div = fct_relevel(div, "Dark", "Observed"))
+
+dodge <- position_dodge(width = 0.6)
+
+catPlotObsDDComm <- ggplot(fixed_effects_all_lab, aes(x = estimate, y = term, color = div)) +
+  geom_point(size = 3, position = dodge,aes(alpha = sig)) +
+  geom_errorbarh(
+    aes(xmin = conf.low, xmax = conf.high, alpha = sig),
+    height = 0.2,
+    position = dodge
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  scale_color_manual(values = c("Dark" = "steelblue", "Observed" = "darkorange")) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.08), guide = "none") +
+  labs(x = "Estimate", y = "", color = "") +
+  my_theme +
+  theme(legend.position = "right")
+
+catPlotObsDDComm
+
+#ggsave(here("figs", "MainFigs", "Fig2communityLevelPl.png"),catPlotObsDDComm, bg = "white", width = 24, height = 14, units = "cm", dpi = 300)
+
+
+```
+
+
+
+### Figure 5
+
+
+
+## Species' suitability figures
+
+```{r spSuitPlots}
+
+df_obs_with_trend <- df_obsval %>%
+  left_join(model_summaries %>% dplyr::select(sp, trend), by = "sp")
+
+# Species and silhouette file paths
+species_list <- c(
+  # increasing
+  "Ammodytes tobianus", "Flustra foliacea", "Microstomus kitt", 
+  "Necora puber", "Pleuronectes platessa", "Luidia ciliaris",
+  # decreasing
+  "Aphrodita aculeata", "Chelidonichthys lucerna", "Echiichthys vipera",
+  "Eutrigla gurnardus", "Gadus morhua", "Merlangius merlangus",
+  # stable
+  "Atelecyclus rotundatus", "Callionymus maculatus", 
+  "Liocarcinus marmoreus", "Liocarcinus pusillus", 
+  "Pandalus montagui", "Donax vittatus"
+)
+
+normalize_name <- function(x) tolower(gsub(" ", "_", x))
+
+species_files <- tibble(
+  sp = species_list,
+  file = paste0(here(), "/figs/sillhouettes/", normalize_name(species_list), ".svg")
+)
+
+# Filter to target species
+df_top5 <- df_obs_with_trend %>%
+  mutate(trend = case_when(trend == "non-significant" ~ "stable", TRUE ~ trend)) %>%
+  filter(sp %in% species_list)
+
+# Silhouette positions
+sil_pos_plot <- species_files %>%
+  mutate(file_exists = file.exists(file)) %>%
+  filter(file_exists) %>%
+  left_join(
+    df_top5 %>%
+      group_by(sp, trend) %>%
+      summarise(
+        x = 2021,
+        y_top = 1,
+        y_bottom = 0.1,
+        .groups = "drop"
+      ),
+    by = "sp"
+  ) %>%
+  mutate(
+    y = ifelse(trend == "increasing", y_bottom, y_top)
+  ) %>%
+  dplyr::select(sp, trend, x, y, file)
+
+# Facet ordering
+sp_order <- df_top5 %>%
+  distinct(trend, sp) %>%
+  arrange(factor(trend, levels = c("decreasing", "increasing", "stable"))) %>%
+  pull(sp)
+
+df_top5 <- df_top5 %>%
+  mutate(
+    trend = factor(trend, levels = c("decreasing", "increasing", "stable")),
+    sp = factor(sp, levels = sp_order)
+  )
+
+model_preds_top5 <- model_summaries %>%
+  filter(sp %in% species_list) %>%
+  mutate(
+    trend = factor(trend, levels = c("decreasing", "increasing", "stable")),
+    sp = factor(sp, levels = sp_order)
+  )
+
+sil_pos_plot <- sil_pos_plot %>%
+  mutate(
+    trend = factor(trend, levels = c("decreasing", "increasing", "stable")),
+    sp = factor(sp, levels = sp_order)
+  )
+
+# Final figure
+fig5 <- df_top5 %>% ggplot(aes(x=year, y=values, group = sp, color = trend)) +
+  
+  geom_point(
+    
+    alpha = 0.05, size = 3
+  ) +
+  geom_smooth(method = "lm") +
+ scale_color_manual(
+  name = NULL,
+  values = c(
+    "increasing" = "#7B68EE",
+    "decreasing" = "#228B22",
+    "stable"     = "#999999"
+  ),
+  labels = c(
+    "increasing" = "Increasing",
+    "decreasing" = "Decreasing",
+    "stable"     = "Stable"
+  )
+) +
+scale_fill_manual(
+  name = NULL,
+  values = c(
+    "increasing" = "#7B68EE",
+    "decreasing" = "#228B22",
+    "stable"     = "#999999"
+  ),
+  labels = c(
+    "increasing" = "Increasing",
+    "decreasing" = "Decreasing",
+    "stable"     = "Stable"
+  )
+)+
+  facet_wrap(~ sp, nrow = 3, ncol = 6) +
+  geom_image(
+    data = sil_pos_plot,
+    aes(x = x, y = y, image = file),
+    inherit.aes = FALSE,
+    size = 0.25
+  ) +
+  coord_cartesian(ylim = c(0, 1), clip = "off") +
+  theme_classic(base_size = 20) +
+theme(
+  legend.title = element_text(size = 22, face = "bold"),
+  legend.text = element_text(size = 38),
+  legend.key.size = unit(2.5, "lines"),
+  legend.position = "top",
+  plot.margin = margin(10, 30, 10, 10),
+  strip.text = element_text(size = 30, face = "bold"),
+  strip.background = element_blank(),
+  axis.title = element_text(size = 44),
+  axis.text = element_text(size = 36),
+  plot.title = element_text(size = 40, face = "bold"),
+  panel.spacing.x = unit(2, "lines"),   
+  panel.spacing.y = unit(1, "lines")      
+)+guides(
+  color = guide_legend(override.aes = list(size = 10, alpha = 0.4)),
+  fill  = guide_legend(override.aes = list(size = 10, alpha = 0.4))
+) +
+theme(
+  legend.text = element_text(size = 44),
+  legend.key.size = unit(3.5, "lines")
+)+
+  xlab("Time") +
+  ylab("Habitat Suitability")
+
+fig5
+
+#ggsave(here("figs", "MainFigs", "Figure5_SuitabilitySp.png"), bg = "white",fig5, width = 40, height =18, dpi = 300)
+```
+
+
+### Supplementary material
+
+
+
+## Testing different threshold
+
+### Fig S1
+
+## Fig Sampling x Years
+
+```{r}
+
+library(viridis)
+
+df_fig <- suitSize_fig2.2 %>%
+  filter(div == "obs") %>% 
+  filter(values > 0) %>% 
+  group_by(sampling) %>%
+  mutate(n_y = n_distinct(year)) %>%
+  arrange(desc(n_y)) %>%
+  group_by(year, sampling) %>%   # include phylum info
+  summarise(n_sp = n_distinct(species), .groups = "drop") %>%
+  group_by(sampling) %>%
+  mutate(n_y = n_distinct(year))
+
+
+nsp_range <- range(df_fig$n_sp, na.rm = TRUE)
+
+numberSPsamples <- ggplot(df_fig, aes(x = year, y = reorder(sampling, n_y))) +
+  geom_point(aes( size = n_sp)) +
+  scale_colour_viridis_c(option = "C", limits = nsp_range) +
+  scale_size_continuous(
+    range = c(2, 8),
+    limits = nsp_range,
+    breaks = seq(from = 6, to = 50, by = 4),
+    name = "Number of species"
+  ) +
+  labs(
+    x = "Year",
+    y = "Sampled stations (ordered by number of years sampled)",
+   size= "Number of species"
+  ) +
+  theme_minimal(base_size = 14)
+
+numberSPsamples
+
+#ggsave(here("figs", "SuppFigs", "fig_sampling_sp.png"), numberSPsamples, width = 14, height = 8, dpi = 300)
+
+```
+
+### Fig S2 - Thresholds
+
+```{r}
+
+
+
+testThresholdYear<-suitSize_fig2.3 %>%
+  filter(!div == "dark", !div == "darkMed", !div == "obs") %>% 
+  dplyr::select(year,n_sp,div,meanTemp) %>%  
+  group_by(sampling, div, year) %>% 
+  distinct() %>%  
+  ggplot(aes(x=year , y=n_sp, colour = div))+ geom_point()+
+  geom_smooth(method = "lm")+
+  
+  xlab("Time")+
+  ylab("Number of species in Dark Diversity")+my_theme
+
+leg <- get_legend(testThresholdYear)
+
+testThresholdYear2<- testThresholdYear +
+  theme(legend.position = "none")
+
+
+
+testThresholdTemp<-suitSize_fig2.3 %>%
+  filter(!div == "dark",!div == "darkMed", !div == "obs") %>% 
+  dplyr::select(year,n_sp,div,meanTemp) %>%  
+  group_by(sampling, div, year) %>% 
+  distinct() %>%  
+  ggplot(aes(x=meanTemp , y=n_sp, colour = div))+ geom_point()+
+  geom_smooth(method = "lm")+
+  xlab("Temperature")+
+  ylab("Number of species in Dark Diversity")+my_theme +
+  theme(legend.position = "none")
+
+threshFig <- plot_grid(testThresholdYear2,testThresholdTemp, leg, ncol = 3,
+                       rel_widths = c(.8,.8,.2))
+ 
+
+threshFig
+
+# ggsave(here("figs", "SuppFigs", "testThreshold.png"), bg = "white", threshFig, units = "cm", height = 18, width =35,dpi = 300)
+
+
+```
+
+
+### Fig S3 - Gain Loss 4x4
+
+
+
+```{r modeltempFig}
+
+### see code in chunck `models_fig`
+
+fig_temp_change
+
+
+#ggsave(here("figs", "SuppFigs", "estimatesSp2x2.png"), bg = "white",fig_temp_change, width = 37, height = 25, units = "cm", dpi = 600)
+
+```
+
+
+### Fig S4 - Temperature
+
+```{r}
+
+
+
+fig_temp <- 
+  combined_df |> 
+  distinct(Year, sampling, .keep_all = T) %>%
+  ggplot(aes(x = Year, y = meanTemp)) +
+  geom_point(alpha=.2) +
+  geom_smooth(method = "gam",
+              formula = y ~ s(x, bs = "cr", k=6),
+              colour = "red",
+              fill = "red") +
+  # #geom_smooth(method = "lm")+
+  ylab("Mean Temperature (°C)") +
+  xlab("Time")+
+  theme_minimal()+my_theme
+
+
+fig_temp
+#ggsave(here("figs", "SuppFigs", "FigTemp.png"), bg = "white",fig_temp, units = "cm", height =20, width =34, dpi = 300)
+
+
+
+```
+
+
+
+### Fig S5 - Interactions
+
+```{r}
+
+YearTempInt <- ggpredict(mod_traits, terms = c("year", "meanTemp")) |>
+  as.data.frame() %>%
+  mutate(group = case_when(group == "-1.04" ~ "-1",
+                           group == "-0.03" ~ "0",
+                           group == "0.97" ~ "+1",
+                           )) %>%
+  ggplot( aes(x = x, y = predicted, color = group, fill = group)) +
+   labs(x = "Year", y = "Predicted suitability", color = "Temperature") +
+  geom_line(linewidth = 1)+
+  
+  scale_color_discrete(direction = -1) +
+  scale_fill_discrete(direction = -1)+
+  theme_minimal(base_size = 13) + my_theme
+
+# Predicted interaction: YEAR × MOBILITY
+YearMot <- ggpredict(mod_traits, terms = c("year", "mobility")) |>
+  as.data.frame() |>
+  mutate(
+    Motility = ifelse(group == "-2.12639114724577", "Sessile", "Mobile")
+  )
+
+yearMobInt <- ggplot(YearMot, aes(x = x, y = predicted, color = Motility, fill = Motility)) +
+  geom_line(linewidth = 1) +
+  labs(x = "Year", y = "Predicted suitability", color = "Motility", fill = "Motility") +
+  scale_color_manual(values = c("Sessile" = "darkgreen", "Mobile" = "steelblue")) +
+  scale_fill_manual(values = c("Sessile" = "darkgreen", "Mobile" = "steelblue")) +
+  theme_minimal(base_size = 13) + my_theme
+
+# Predicted interaction: YEAR × BODY SIZE
+YearBS <- ggpredict(mod_traits, terms = c("year", "body_size")) |>
+  as.data.frame()
+
+yearBSInt <- ggplot(YearBS, aes(x = x, y = predicted, color = group, fill = group)) +
+  geom_line(linewidth = 1) +
+  labs(x = "Year", y = "Predicted suitability", color = "Body Size") +
+  
+  scale_color_discrete(direction = -1) +
+  scale_fill_discrete(direction = -1)+
+  theme_minimal(base_size = 13) + my_theme
+
+
+combIntFig <- plot_grid(
+  
+  YearTempInt,
+  yearBSInt,
+  yearMobInt,
+  
+  labels = c("A", "B", "C", "D"),
+  ncol = 3
+)
+
+
+#ggsave(here("figs", "SuppFigs", "SuppFigBS-MOT-TEMP.png"), bg = "white", combIntFig, units="cm", height =16, width =54, dpi = 300)
+
+```
+
+### Fig S6 - Interactions 
+
+```{r}
+
+ggeffectTempDD <- ggeffects::ggpredict(mod_lmerDivDDComm, terms = c("year", "meanTemp")) |> 
+  as.data.frame() |> 
+  mutate(group = case_when(group == "-1" ~ "-1",
+                           group == "0" ~ "0",
+                           group == "1" ~ "+1"),
+  group = factor(group, levels = c("-1", "0", "+1"))) |> 
+  
+ ggplot(aes(x = x, y = predicted, color = group, fill = group)) +
+  geom_line(linewidth = 1) +ggtitle("Dark diversity")+ ylab("Number of species")+ xlab("Year")+
+  labs(color = "Temperature")+
+  scale_color_discrete(direction = -1) +
+  scale_fill_discrete(direction = -1)+
+  my_theme
+
+ggeffectSalOBS <- ggeffects::ggpredict(mod_lmerDivComm, terms = c( "year","meanTemp")) |> 
+  as.data.frame() |> 
+  mutate(group = case_when(group == "-1" ~ "-1",
+                           group == "0" ~ "0",
+                          group == "1" ~ "+1"),
+  group = factor(group, levels = c("-1", "0", "+1"))) |> 
+  
+ ggplot(aes(x = x, y = predicted, color = group, fill = group)) +
+  geom_line(linewidth = 1) +
+  ggtitle("Observed diversity")+
+  ylab("Number of species")+ labs(color = "Temperature")+
+  xlab("Year")+
+  scale_color_discrete(direction = -1) +
+  scale_fill_discrete(direction = -1)+
+  my_theme
+
+
+ggef <- plot_grid(ggeffectSalOBS , ggeffectTempDD)
+
+#ggsave(here("figs", "SuppFigs", "SuppFigModelSuitComm.png"), bg = "white", units="cm", height =18, width =46, dpi = 300)
+```
+
+
 
 ## Flows - Trait
 
@@ -1569,51 +1761,6 @@ acf(residuals(models_ar1[["obs"]]), main = "ACF: observed diversity")
 
 ```
 
-## Testing different threshold
-
-```{r}
-
-
-
-testThresholdYear<-suitSize_fig2.3 %>%
-  filter(!div == "dark", !div == "darkMed", !div == "obs") %>% 
-  dplyr::select(year,n_sp,div,meanTemp) %>%  
-  group_by(sampling, div, year) %>% 
-  distinct() %>%  
-  ggplot(aes(x=year , y=n_sp, colour = div))+ geom_point()+
-  geom_smooth(method = "lm")+
-  
-  xlab("Time")+
-  ylab("Number of species in Dark Diversity")+my_theme
-
-leg <- get_legend(testThresholdYear)
-
-testThresholdYear2<- testThresholdYear +
-  theme(legend.position = "none")
-
-
-
-testThresholdTemp<-suitSize_fig2.3 %>%
-  filter(!div == "dark",!div == "darkMed", !div == "obs") %>% 
-  dplyr::select(year,n_sp,div,meanTemp) %>%  
-  group_by(sampling, div, year) %>% 
-  distinct() %>%  
-  ggplot(aes(x=meanTemp , y=n_sp, colour = div))+ geom_point()+
-  geom_smooth(method = "lm")+
-  xlab("Temperature")+
-  ylab("Number of species in Dark Diversity")+my_theme +
-  theme(legend.position = "none")
-
-threshFig <- plot_grid(testThresholdYear2,testThresholdTemp, leg, ncol = 3,
-                       rel_widths = c(.8,.8,.2))
- 
-
-threshFig
-
-# ggsave(here("figs", "SuppFigs", "testThreshold.png"), bg = "white", threshFig, units = "cm", height = 18, width =35,dpi = 300)
-
-
-```
 
 ## Suitability observed x dark
 
@@ -1629,310 +1776,177 @@ suit_obsdd <- obs_suit %>% dplyr::select(year, sampling, obs, dark) %>%
 suit_obsdd
 ```
 
-# Temperature map
+## Supp Tables
+
+
+## Table sp Suitability/Trait
 
 ```{r}
 
-rt<-rast(here("data", "CopernicusTempDepth.nc"))
 
-dates <- time(rt)
+mod_tidy <- tidy(mod_traits, effects = "fixed", conf.int = TRUE)
 
-# Extract years from dates
-years <- format(dates, "%Y")
+summaryMod <- model_parameters(mod_traits) %>%
+  dplyr::select(Parameter, Coefficient, CI_low, CI_high, p) 
 
-# Create an index for each year
-depth_levels <- c(25:40)
+combinedSumm <- summaryMod %>%
+  mutate(
+    p_display = ifelse(p < 0.001, "< 0.001", sprintf("%.3f", p)),
+    sig = p <= 0.05
+  )
 
-
-# Annual mean temperature for each year and depth
-annual_means <- expand_grid(year = unique(years), depth = depth_levels) %>%
-  pmap(~ {
-    year <- ..1
-    depth <- ..2
-    layers_of_year <- which(years == year)
-    yearly_stack <- rt[[layers_of_year]]
-    depth_layers <- yearly_stack[[seq(depth, nlyr(yearly_stack), by = length(depth_levels))]]
-    annual_mean <- mean(depth_layers, na.rm = TRUE)
-    annual_mean
-  }) %>%
-  rast()
-#
-# # Names based on years and depths
-layer_names <- expand_grid(year = unique(years), depth = depth_levels) %>%
-  pmap_chr(~ glue::glue("Year_{..1}_Depth_{..2}"))
-
-names(annual_means) <- layer_names
-
-# Annual means stack to a data frame
-annual_means_df <- as.data.frame(annual_means, xy = TRUE)
-
-annual_means_long <- annual_means_df %>%
-  pivot_longer(cols = -c(x, y),
-               names_to = c("Year", "Depth"),
-               names_sep = "_Depth_",
-               values_to = "Temperature") %>%
-  mutate(Title = glue::glue("Sea temperature in Year {Year} at Depth {Depth}"))
-
-# ######## Map Figure Temperature ################
-#
-annual_means_df <- as.data.frame(annual_means, xy = TRUE) %>%
-  pivot_longer(cols = starts_with("Year"), names_to = "Year_Depth", values_to = "Temperature")
-#
-# # Separate the "Year_Depth" into "Year" and "Depth"
-annual_means_df <- annual_means_df %>%
-  separate(Year_Depth, into = c("Year", "Depth"), sep = "_Depth_") %>%
-  mutate(Year = gsub("Year_", "", Year))  # Clean up "Year_" prefix
-
-annual_means_df <- annual_means_df %>%
-  mutate(Year = as.numeric(Year)) %>%
-  filter(
-    x >= 1.2, x <= 4.4,
-    y >= 54.2, y <= 55.5
+combinedSumm %>%
+ dplyr::select( Parameter, Coefficient, CI_low, CI_high, p_display, sig) %>%
+  mutate(Parameter = gsub(":", " × ", Parameter)) %>%
+  gt() %>%
+  tab_header(
+    title = "Mixed-Effects Model Summary",
+    subtitle = "Observed and Dark Diversity Models"
   ) %>%
-  group_by(x,y, Year) %>%
-  summarise(Temperature = mean(Temperature))
-
-#saveRDS(annual_means_df, here("rdsFiles", "tempMap.RDS"))
-
-annual_means_df <- readRDS(here("rdsFiles", "tempMap.RDS"))
-
-# Temperature difference between first and last year
-first_year <- min(annual_means_df$Year, na.rm = TRUE)
-last_year  <- max(annual_means_df$Year, na.rm = TRUE)
-
-temp_change <- annual_means_df %>%
-  filter(Year %in% c(first_year, last_year)) %>%
-  group_by(x, y) %>%
-  summarise(
-    temp_diff = Temperature[Year == last_year] - Temperature[Year == first_year],
-    .groups = "drop"
-  )
-world <- ne_countries(scale = "medium", returnclass = "sf")
-
-# Inset map
-dogger_box <- data.frame(
-  xmin = 1.2, xmax = 4.4,
-  ymin = 54.2, ymax = 55.5
-)
-
-north_sea <-  data.frame(
-  xmin = -3, xmax = 4.4,
-  ymin = 54.2, ymax = 55.5
-)
-
-# 4. Main map
-main_map <- ggplot() +
-  geom_raster(data = temp_change, aes(x = x, y = y, fill = temp_diff), interpolate = TRUE) +
-  geom_sf(data = world, fill = "grey85", color = "grey60", linewidth = 0.3) +
-  coord_sf(xlim = c(1.2, 4.38), ylim = c(54.2,55.5), expand = FALSE) +
-  geom_point(
-    data = coord_clean,
-    aes(x = longitude, y = latitude),
-    shape = 21, size = 4, stroke = 0.3,
-    color = "black", fill = "white"
-  ) +
-  # Station labels
-  geom_text_repel(
-    data = coord_clean,
-    aes(x = longitude, y = latitude, label = sampling),
-    size = 7.8,
-    color = "black",
-    segment.size = 0.2,
-    box.padding = 0.3,
-    max.overlaps = 100
-  ) +
-  scale_fill_viridis_c(option = "C",
-                        name = expression(Delta~"Temperature (°C)"))+
-  labs(
-  x = "Longitude", y = "Latitude"
-  ) +
-  annotation_scale(location = "bl", width_hint = 0.25, text_cex = 0.8) +
-  annotation_north_arrow(location = "tl", which_north = "true",
-                         style = north_arrow_fancy_orienteering) +
-  theme_minimal(base_size = 26) +
-  theme(
-    legend.position = "bottom",
-    legend.key.width = unit(3.2, "cm"),
-    legend.title = element_text(size = 20, face = "bold"),
-    legend.text = element_text(size = 24),
-    plot.title = element_text(face = "bold", size = 26, hjust = 0.5),
-    axis.text = element_text(size = 26),
-    panel.background = element_rect(fill = "aliceblue", color = NA)
-  ) + theme(aspect.ratio = 0.7)
-
-
-#main_map
-
-countries_to_label <- c(
-  "United Kingdom", "Netherlands", "Germany",
-  "Denmark", "Norway", "Belgium", "France"
-) 
-
-world_small <- world %>%
-  filter(name_long %in% countries_to_label) %>%
-  st_transform(crs = 4326)
-
-label_pts <- world_small %>%
-  st_point_on_surface() %>%
-  mutate(
-    lon = st_coordinates(.)[,1],
-    lat = st_coordinates(.)[,2]
-  )
-
-
-abbr_map <- c(
-  "United Kingdom" = "United Kingdom",
-  "Netherlands"    = "Netherlands",
-  "Germany"        = "Germany",
-  "Denmark"        = "Denmark",
-  "Norway"         = "Norway",
-  "Belgium"        = "Belgium",
-  "France"         = "France"
-)
-
-label_pts2 <- label_pts %>%
-  mutate(abbr = abbr_map[name_long])  %>% 
-    mutate(
-    abbr = abbr_map[name_long],
-    lat = case_when(
-      abbr == "United Kingdom" ~ lat - 1, # just to avoid the overlap with dogger bank's orange box
-      TRUE ~ lat
+  fmt_number(columns = c("Coefficient", "CI_low", "CI_high"), decimals = 3) %>%
+  cols_label(
+    Parameter = "Term",
+    Coefficient = "Estimate",
+    CI_low = "CI Lower",
+    CI_high = "CI Upper",
+    p_display = "p-value"
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = "p_display",
+      rows = sig == TRUE
     )
   )
 
-inset_map <- ggplot() +
-  geom_sf(data = world, fill = "grey90", color = "white") +
-  geom_rect(
-    data = dogger_box,
-    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-    color = "orange", fill = NA, linewidth = 1
-  ) +
-  annotate(
-  "text",
-  x = mean(c(dogger_box$xmin, dogger_box$xmax)),
-  y = dogger_box$ymax + 2.2, 
-  label = "North Sea",
-  size = 7,
-  fontface = "bold",
-  colour = "#4169E1"
-)+
-
-  geom_text(
-    data = label_pts2 %>% st_drop_geometry(),
-    aes(x = lon, y = lat, label = abbr),
-    size = 5, fontface = "bold", color = "black"
-  ) +
-  
-  coord_sf(xlim = c(-10, 13), ylim = c(48, 60), expand = FALSE) +
-  theme_void() +
-  theme(panel.background = element_rect(fill = "aliceblue", color = NA))
-
-final_plot <- ggdraw(xlim = c(0, 1), ylim = c(0, 1)) +   
-  draw_plot(
-    main_map,
-    x = 0, y = 0,
-    width = 1, height = 1
-  ) +
-  draw_plot(
-    inset_map,
-    x = 0.99,   
-    y = 0.217,  
-    width = 0.32,
-    height = 0.32,
-    hjust = 1,
-    vjust = 0   
-  )
-
-final_plot
-
-#ggsave(here("figs", "MainFigs", "MapTempChange.png"), final_plot, units =  "cm", width = 40, height = 30, dpi = 300)
 ```
 
-## Lollipop figure
+
+
+
+## Table Community
 
 ```{r}
 
+obs_summary <- model_parameters(mod_lmerDivComm) %>%
+  dplyr::select(Parameter, Coefficient, CI_low, CI_high, p) %>%
+  mutate(Model = "Observed")
 
-trend_colors <- c(
-  "increasing" = "#7B68EE",
-  "decreasing" = "#228B22",
-  "stable"     = "#999999"  
-)
+dark_summary <- model_parameters(mod_lmerDivDDComm) %>%
+  dplyr::select(Parameter, Coefficient, CI_low, CI_high, p) %>%
+  mutate(Model = "Dark")
 
-# colours for each species name
-model_summaries2 <- model_summaries %>% 
+
+combined <- bind_rows(obs_summary, dark_summary)
+
+
+combined <- combined %>%
   mutate(
-    sp_label = case_when(
-      trend == "increasing" ~ sprintf("<span style='color:%s;'>%s</span>", trend_colors["increasing"], sp),
-      trend == "decreasing" ~ sprintf("<span style='color:%s;'>%s</span>", trend_colors["decreasing"], sp),
-      TRUE ~ sprintf("<span style='color:%s;'>%s</span>", trend_colors["stable"], sp)
+    p_display = ifelse(p < 0.001, "< 0.001", sprintf("%.3f", p)),
+    sig = p < 0.05
+  )
+
+# Create the gt table
+combined %>%
+  dplyr::select(Model, Parameter, Coefficient, CI_low, CI_high, p_display, sig) %>%
+  mutate(Parameter = gsub(":", " × ", Parameter)) %>%
+  gt() %>%
+  tab_header(
+    title = "Mixed-Effects Model Summary",
+    subtitle = "Observed and Dark Diversity Models"
+  ) %>%
+  fmt_number(columns = c("Coefficient", "CI_low", "CI_high"), decimals = 3) %>%
+  cols_label(
+    Model = "Model",
+    Parameter = "Term",
+    Coefficient = "Estimate",
+    CI_low = "CI Lower",
+    CI_high = "CI Upper",
+    p_display = "p-value"
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = "p_display",
+      rows = sig == TRUE
     )
   )
 
-fig_slope_lollipop <- ggplot(model_summaries2, aes(x = reorder(sp_label, estimate), y = estimate, color = trend)) +
-  geom_segment(aes(xend = sp_label, y = 0, yend = estimate), linewidth = 0.8) +
-  geom_point(size = 2) +
-  scale_color_manual(values = trend_colors) +
-  coord_flip() +
-  theme_classic(base_size = 16) +
-  theme(
-    legend.position = "bottom",
-    legend.title = element_blank(),
-    axis.text.y = element_markdown(size = 10),  
-    axis.text.x = element_text(size = 14),
-    axis.title = element_text(size = 20, face = "bold"),
-    plot.title = element_text(size = 22, face = "bold", hjust = 0.5)
-  ) +
-  labs(
-    title = "Species-specific slopes of habitat suitability",
-    x = NULL,
-    y = "Slope estimate (per year)"
+```
+
+
+## Sample coverage
+
+```{r samplecoverage}
+#| warning: false
+#| cache: true
+
+
+sampleCovarage <- df %>%
+  distinct(year, sampling, sp, values) %>%
+  mutate(values = as.integer(values > 0)) %>%   # incidence
+  split(.$year) %>%
+  map(~ .x %>%
+        pivot_wider(
+          id_cols = sp,
+          names_from = sampling,
+          values_from = values,
+          values_fill = 0
+        ) %>%
+        column_to_rownames("sp")
   )
 
-fig_slope_lollipop
+SampCv <- iNEXT(
+  sampleCovarage,
+  q = 0,
+  datatype = "incidence_raw"
+)
 
-#ggsave(here("figs", "SuppFigs", "fig_slope_lollipop.png"), fig_slope_lollipop, width = 14, height = 16, dpi = 300)
+
+SampCvTable <- SampCv$DataInfo %>%
+  dplyr::select(
+    Year = Assemblage,
+    Sample_Coverage = SC
+  )
+
+rmarkdown::paged_table(SampCvTable)
 
 ```
 
-## Fig Sampling x Years
+## Sample coverage per site
 
 ```{r}
+## Per site
 
-library(viridis)
+scSite <- df %>%
+  distinct(year, sampling, sp, values) %>%
+  mutate(values = as.integer(values > 0)) %>%  
+  split(.$sampling) %>%
+  map(~ .x %>%
+        pivot_wider(
+          id_cols = sp,
+          names_from = year,
+          values_from = values,
+          values_fill = 0
+        ) %>%
+        column_to_rownames("sp")
+      )
 
-df_fig <- suitSize_fig2.2 %>%
-  filter(div == "obs") %>% 
-  filter(values > 0) %>% 
-  group_by(sampling) %>%
-  mutate(n_y = n_distinct(year)) %>%
-  arrange(desc(n_y)) %>%
-  group_by(year, sampling) %>%   # include phylum info
-  summarise(n_sp = n_distinct(species), .groups = "drop") %>%
-  group_by(sampling) %>%
-  mutate(n_y = n_distinct(year))
+SampCvSite <- iNEXT(
+  scSite,
+  q = 0,
+  datatype = "incidence_raw"
+)
 
 
-nsp_range <- range(df_fig$n_sp, na.rm = TRUE)
+SampCvTableSite <- SampCvSite$DataInfo %>%
+  dplyr::select(
+    Site = Assemblage,
+    Sample_Coverage = SC
+  )
 
-numberSPsamples <- ggplot(df_fig, aes(x = year, y = reorder(sampling, n_y))) +
-  geom_point(aes( size = n_sp)) +
-  scale_colour_viridis_c(option = "C", limits = nsp_range) +
-  scale_size_continuous(
-    range = c(2, 8),
-    limits = nsp_range,
-    breaks = seq(from = 6, to = 50, by = 4),
-    name = "Number of species"
-  ) +
-  labs(
-    x = "Year",
-    y = "Sampled stations (ordered by number of years sampled)",
-   size= "Number of species"
-  ) +
-  theme_minimal(base_size = 14)
+rmarkdown::paged_table(SampCvTableSite)
 
-numberSPsamples
-
-#ggsave(here("figs", "SuppFigs", "fig_sampling_sp.png"), numberSPsamples, width = 14, height = 8, dpi = 300)
 
 ```
+

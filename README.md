@@ -7,7 +7,38 @@ The repository is organised to allow full reproducibility of the analyses and fi
 
 ## Reproducibility
 
-This project uses renv to manage R package dependencies.
+This project uses a two-layer approach to ensure reproducibility:
+
+- `rig` (R Installation Manager) to manage the R version
+
+- `renv` to manage package dependencies
+
+The required R version (4.4.0) is recorded in renv.lock and in the file .R-version, which is read by rig (version 0.7.1) to ensure the correct R version is used.
+
+```text
+
+Setup instructions
+1. Install rig (once per machine)
+
+rig must be installed outside R.
+
+Windows, macOS, Linux:
+https://rig.r-pkg.org
+
+(On Windows, use the installer from the GitHub releases page.)
+
+Verify installation:
+
+rig --version
+
+2. Install the required R version
+
+From a terminal or PowerShell:
+
+rig install 4.4.0
+rig default 4.4.0
+
+```
 
 To reproduce the analyses:
 
