@@ -15,10 +15,12 @@ This project uses a two-layer approach to ensure reproducibility:
 
 The required R version (4.4.0) is recorded in renv.lock and in the file .R-version, which is read by rig (version 0.7.1) to ensure the correct R version is used.
 
+
+
 ```text
 
 Setup instructions
-1. Install rig (once per machine)
+1. Install rig
 
 rig must be installed outside R.
 
@@ -40,7 +42,14 @@ rig default 4.4.0
 
 ```
 
-To reproduce the analyses:
+Please note that R version switching is not automatic. Before restoring the project environment, after installing the used version, users must ensure that R 4.4.0 is the active R version, for example using rig default:
+
+```text
+rig install 4.4.0   # skip it if already installed
+rig default 4.4.0
+```
+
+Then, use renv and the Quarto script (`scripts/script_GCB_MarineDD.qmd`) to reproduce the analyses:
 
 ```{r}
 
@@ -56,21 +65,6 @@ scripts/script_GCB_MarineDD.qmd
 
 ```
 
-## Repository structure
-
-```text
-
-├── data/
-├── figs/
-│   ├── MainFigs/
-│   ├── SuppFigs/
-│   └── silhouettes/
-├── rdsFiles/
-├── renv/
-├── scripts/
-└── README.md
-
-```
 
 ## Folder descriptions
 
@@ -111,13 +105,14 @@ SVG silhouette files used for species illustrations (e.g. Figure 5).
 
 ```text
 
-Intermediate .rds objects used in the analyses to avoid repeated data processing.
+Intermediate .rds objects used in the analyses to avoid repeated data processing and ensure reproducibility.
 
 Examples include:
 
 GBIF-derived taxonomic information (e.g. phylum assignment)
 
 Processed temperature data
+
 ```
 - `scripts/`
 
@@ -135,7 +130,7 @@ data processing;
 suitability and dark diversity estimation; 
 trait-based analyses; 
 statistical models; 
-figures
+main and supplementary figures
 ```
 
 `renv/`
