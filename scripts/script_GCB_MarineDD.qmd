@@ -1413,9 +1413,9 @@ figMeanTemp <- plot_grid(NULL, fig_temp, NULL, ncol= 3, rel_widths = c(.2, 1, .2
 
 figMinMax <- plot_grid(fig_tempMin, fig_tempMax)
 
-combFig <- plot_grid(figMeanTemp, figMinMax, nrow = 2, labels = "AUTO")
+combFig <- plot_grid(figMeanTemp, figMinMax, nrow = 2, labels = "auto")
 
-#ggsave(here("figs", "SuppFigs", "combTempFig.png"), bg = "white",combFig, units = "cm", height =28, width =38, dpi = 300)
+#ggsave(here("figs", "SuppFigs", "FigS4_combTempFig.png"), bg = "white",combFig, units = "cm", height =28, width =38, dpi = 300)
 
 
 
@@ -1515,12 +1515,12 @@ combIntFig <- plot_grid(
   yearBSInt,
   yearMobInt,
   
-  labels = c("A", "B", "C"),
+  labels = c("a", "b", "c"),
   ncol = 3
 )
 
 
-#ggsave(here("figs", "SuppFigs", "SuppFigBS-MOT-TEMP.png"), bg = "white", combIntFig, units="cm", height =16, width =54, dpi = 300)
+#ggsave(here("figs", "SuppFigs", "FigS6_BS-MOT-TEMP.png"), bg = "white", combIntFig, units="cm", height =16, width =54, dpi = 300)
 
 ```
 
@@ -1726,16 +1726,18 @@ figMOBEmmean <- ggplot(as.data.frame(cld_mob), aes(x = emmean, y = flow)) +
   labs(x = "Estimated Means", y = "", title = "Motility") +
   my_theme
 
-combEmmeanPlot <- plot_grid(figBSEmmean, figMOBEmmean, NULL, nrow = 1, labels = c("A", "B"), rel_widths = c(0.9, 0.9, 0.1))
+combEmmeanPlot <- plot_grid(figBSEmmean, figMOBEmmean, NULL, nrow = 1, labels = c("a", "b"), rel_widths = c(0.9, 0.9, 0.1))
 
 
 combEmmeanPlot
 
-#ggsave(here("figs", "SuppFigs", "flowTraitDiff.png"), combEmmeanPlot, units = "cm", width = 36, height = 18, dpi = 300, bg = "white")
+#ggsave(here("figs", "SuppFigs", "FigS7_flowTraitDiff.png"), combEmmeanPlot, units = "cm", width = 36, height = 18, dpi = 300, bg = "white")
 
 
 
 ```
+
+## Figure S8 - Species-specific suitability trends
 
 
 ```{r}
@@ -1778,7 +1780,7 @@ fig_slope_lollipop <- ggplot(model_summaries2, aes(x = reorder(sp_label, estimat
 
 fig_slope_lollipop
 
-#ggsave(here("figs", "SuppFigs", "fig_slope_lollipop.png"), fig_slope_lollipop, width = 14, height = 16, dpi = 300)
+#ggsave(here("figs", "SuppFigs", "FigS8_slope_lollipop.png"), fig_slope_lollipop, width = 14, height = 16, dpi = 300)
 
 ```
 
