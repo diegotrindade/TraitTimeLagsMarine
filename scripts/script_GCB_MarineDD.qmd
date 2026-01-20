@@ -1082,7 +1082,7 @@ catPlotSuitTrait <- ggplot(fixed_effects_clean, aes(x = estimate, y = term_clean
     "General" = "gray40"
   )) +
   labs(x = "Estimate", y = "", color = "") +
-  theme_minimal(base_size = 14) +
+  theme_minimal(base_size = 16) +
   theme(legend.position = "right",
         panel.grid = element_blank())
 
