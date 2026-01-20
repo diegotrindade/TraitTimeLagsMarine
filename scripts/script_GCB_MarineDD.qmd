@@ -953,10 +953,59 @@ final_plot <- ggdraw(xlim = c(0, 1), ylim = c(0, 1)) +
 
 final_plot
 
-#ggsave(here("figs", "MainFigs", "MapTempChange.png"), final_plot, units =  "cm", width = 40, height = 30, dpi = 300)
+#ggsave(here("figs", "MainFigs", "Fig2_MapTempChange.png"), final_plot, units =  "cm", width = 40, height = 30, dpi = 300)
 ```
 
-### Figure 3 - Species level
+
+### Figure 3 - Community level
+
+```{r}
+
+fixed_effectsDDComm <- broom.mixed::tidy(mod_lmerDivDDComm, effects = "fixed", conf.int = TRUE) |> 
+  filter(!term == "(Intercept)")
+
+# Extract fixed effects estimates and confidence intervals
+
+fixed_effectsComm$div <- "Observed"
+fixed_effectsDDComm$div <- "Dark"
+
+fixed_effects_all <- bind_rows(fixed_effectsComm, fixed_effectsDDComm)
+
+fixed_effects_all_lab <- fixed_effects_all %>%
+  mutate(sig = p.value <= 0.05) |> 
+  mutate(term = case_when(term == "meanTemp" ~ "Temperature",
+                          term == "year" ~ "Time",
+                          term == "meanTemp:year" ~ "Temperature:Time")) |> 
+  mutate(term = as.factor(term),
+         div = as.factor(div)) %>%
+  mutate(term = fct_relevel(term, "Temperature:Time", "Temperature", "Time"  ),
+         div = fct_relevel(div, "Dark", "Observed"))
+
+dodge <- position_dodge(width = 0.6)
+
+catPlotObsDDComm <- ggplot(fixed_effects_all_lab, aes(x = estimate, y = term, color = div)) +
+  geom_point(size = 3, position = dodge,aes(alpha = sig)) +
+  geom_errorbarh(
+    aes(xmin = conf.low, xmax = conf.high, alpha = sig),
+    height = 0.2,
+    position = dodge
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  scale_color_manual(values = c("Dark" = "steelblue", "Observed" = "darkorange")) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.08), guide = "none") +
+  labs(x = "Estimate", y = "", color = "") +
+  my_theme +
+  theme(legend.position = "right")
+
+catPlotObsDDComm
+
+#ggsave(here("figs", "MainFigs", "Fig3_communityLevelPl.png"),catPlotObsDDComm, bg = "white", width = 24, height = 14, units = "cm", dpi = 300)
+
+
+```
+
+
+### Figure 4 - Suitability and Trait
 
 ```{r}
 
@@ -1040,56 +1089,7 @@ catPlotSuitTrait <- ggplot(fixed_effects_clean, aes(x = estimate, y = term_clean
 catPlotSuitTrait
 
 
-# ggsave(here("figs", "MainFigs", "Fig_Traits_Combined.png"), plot = catPlotSuitTrait, bg = "white", width = 10, height = 6, dpi = 300)
-
-
-```
-
-
-
-### Figure 4 - Community level
-
-```{r}
-
-fixed_effectsDDComm <- broom.mixed::tidy(mod_lmerDivDDComm, effects = "fixed", conf.int = TRUE) |> 
-  filter(!term == "(Intercept)")
-
-# Extract fixed effects estimates and confidence intervals
-
-fixed_effectsComm$div <- "Observed"
-fixed_effectsDDComm$div <- "Dark"
-
-fixed_effects_all <- bind_rows(fixed_effectsComm, fixed_effectsDDComm)
-
-fixed_effects_all_lab <- fixed_effects_all %>%
-  mutate(sig = p.value <= 0.05) |> 
-  mutate(term = case_when(term == "meanTemp" ~ "Temperature",
-                          term == "year" ~ "Time",
-                          term == "meanTemp:year" ~ "Temperature:Time")) |> 
-  mutate(term = as.factor(term),
-         div = as.factor(div)) %>%
-  mutate(term = fct_relevel(term, "Temperature:Time", "Temperature", "Time"  ),
-         div = fct_relevel(div, "Dark", "Observed"))
-
-dodge <- position_dodge(width = 0.6)
-
-catPlotObsDDComm <- ggplot(fixed_effects_all_lab, aes(x = estimate, y = term, color = div)) +
-  geom_point(size = 3, position = dodge,aes(alpha = sig)) +
-  geom_errorbarh(
-    aes(xmin = conf.low, xmax = conf.high, alpha = sig),
-    height = 0.2,
-    position = dodge
-  ) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
-  scale_color_manual(values = c("Dark" = "steelblue", "Observed" = "darkorange")) +
-  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.08), guide = "none") +
-  labs(x = "Estimate", y = "", color = "") +
-  my_theme +
-  theme(legend.position = "right")
-
-catPlotObsDDComm
-
-#ggsave(here("figs", "MainFigs", "Fig2communityLevelPl.png"),catPlotObsDDComm, bg = "white", width = 24, height = 14, units = "cm", dpi = 300)
+# ggsave(here("figs", "MainFigs", "Fig4_Traits_Combined.png"), plot = catPlotSuitTrait, bg = "white", width = 10, height = 6, dpi = 300)
 
 
 ```
@@ -1243,7 +1243,7 @@ theme(
 
 fig5
 
-#ggsave(here("figs", "MainFigs", "Figure5_SuitabilitySp.png"), bg = "white",fig5, width = 40, height =18, dpi = 300)
+#ggsave(here("figs", "MainFigs", "Fig5_SuitabilitySp.png"), bg = "white",fig5, width = 40, height =18, dpi = 300)
 ```
 
 
