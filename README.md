@@ -141,7 +141,7 @@ This ensures package versions are fixed and analyses remain reproducible.
 
 ## Data sources and notes
 
-Analyses were developed and run using R version 4.4.0. Make sure you are not using an older version.
+Analyses were developed and run using R version 4.4.0.
 
 Temperature data were obtained from the Copernicus Marine Environment Monitoring Service (CMEMS).
 
