@@ -336,7 +336,7 @@ rmarkdown::paged_table(trend_summary)
 
 ```{r}
 
-combined_df <- readRDS(here::here("rdsFiles", "TempCopernicus25-40m.RDS")) # rds file to use temperature in the models
+combined_df <- readRDS(here::here("rdsFiles", "MinMaxTempCopernicus25-40m.RDS")) # rds file to use temperature in the models
 
 suit_fig <- obs_suit %>%
   rename(species = sp) |>
@@ -371,12 +371,12 @@ suitSize_fig <- df_suit %>%
          mean_logbs = mean(log10(body_size))
          )
 
-tempSalCol <- suit_Tempfig %>% 
+tempCol <- suit_Tempfig %>% 
   ungroup %>% distinct(sampling, year, .keep_all = T) %>% 
   dplyr::select(year, sampling, meanTemp)
 
 suitSize_fig2.1 <- suitSize_fig %>% 
-  left_join(tempSalCol, by = c("sampling", "year"))
+  left_join(tempCol, by = c("sampling", "year"))
 
 suitSize_fig2.2 <- suitSize_fig2.1 %>% ungroup() %>% 
   mutate(species = as.factor(species),
@@ -453,7 +453,7 @@ mod_lmerDivDDComm<- lmer(n_sp ~ meanTemp*year+
 
 
 
-## Figure gains-losses
+## Models GainLoss
 
 ```{r models}
 
@@ -618,7 +618,7 @@ test_mod <- model_estimates |>
 
 ```
 
-## Figure 2x2
+## Code Fig S3 - GainLoss
 
 ```{r models_fig}
 
@@ -736,7 +736,7 @@ imm_cred <- test_mod |>
 
 ## Figures
 
-### Fig2 - Dogger bank map
+### Figure 2 - Map Dogger Bank
 
 
 ```{r}
@@ -956,7 +956,7 @@ final_plot
 #ggsave(here("figs", "MainFigs", "MapTempChange.png"), final_plot, units =  "cm", width = 40, height = 30, dpi = 300)
 ```
 
-### Fig 3 - Species level
+### Figure 3 - Species level
 
 ```{r}
 
@@ -1047,7 +1047,7 @@ catPlotSuitTrait
 
 
 
-### Fig 4
+### Figure 4 - Community level
 
 ```{r}
 
@@ -1096,11 +1096,7 @@ catPlotObsDDComm
 
 
 
-### Figure 5
-
-
-
-## Species' suitability figures
+### Figure 5 - Suitability trends
 
 ```{r spSuitPlots}
 
@@ -1251,15 +1247,9 @@ fig5
 ```
 
 
-### Supplementary material
+## Supplementary Figures
 
-
-
-## Testing different threshold
-
-### Fig S1
-
-## Fig Sampling x Years
+### Fig S1 - Sampling x Years
 
 ```{r}
 
@@ -1348,7 +1338,7 @@ threshFig
 ```
 
 
-### Fig S3 - Gain Loss 4x4
+### Fig S3 - Gain Loss
 
 
 
@@ -1385,16 +1375,96 @@ fig_temp <-
   theme_minimal()+my_theme
 
 
-fig_temp
-#ggsave(here("figs", "SuppFigs", "FigTemp.png"), bg = "white",fig_temp, units = "cm", height =20, width =34, dpi = 300)
+
+fig_tempMin <- 
+  combined_df |> 
+  distinct(Year, sampling, .keep_all = T) %>%
+  dplyr::select(Year, sampling, minTemp, maxTemp) %>% 
+  ggplot(aes(x = Year, y = minTemp)) +
+  geom_point(alpha=.2) +
+  geom_smooth(method = "gam",
+              formula = y ~ s(x, bs = "cr", k=6),
+              colour = "blue",
+              fill = "blue") +
+  # #geom_smooth(method = "lm")+
+  ylab("Minimum Temperature (°C)") +
+  xlab("Time")+
+  theme_minimal()+my_theme
+
+
+
+
+fig_tempMax <- 
+  combined_df |> 
+  distinct(Year, sampling, .keep_all = T) %>%
+  dplyr::select(Year, sampling, minTemp, maxTemp) %>% 
+  ggplot(aes(x = Year, y = maxTemp)) +
+  geom_point(alpha=.2) +
+  geom_smooth(method = "gam",
+              formula = y ~ s(x, bs = "cr", k=6),
+              colour = "orange",
+              fill = "orange") +
+  # #geom_smooth(method = "lm")+
+  ylab("Maximum Temperature (°C)") +
+  xlab("Time")+
+  theme_minimal()+my_theme
+
+figMeanTemp <- plot_grid(NULL, fig_temp, NULL, ncol= 3, rel_widths = c(.2, 1, .2))
+
+figMinMax <- plot_grid(fig_tempMin, fig_tempMax)
+
+combFig <- plot_grid(figMeanTemp, figMinMax, nrow = 2, labels = "AUTO")
+
+#ggsave(here("figs", "SuppFigs", "combTempFig.png"), bg = "white",combFig, units = "cm", height =28, width =38, dpi = 300)
+
 
 
 
 ```
 
+### Fig S5 - Interactions Community Model
+
+```{r}
+
+ggeffectTempDD <- ggeffects::ggpredict(mod_lmerDivDDComm, terms = c("year", "meanTemp")) |> 
+  as.data.frame() |> 
+  mutate(group = case_when(group == "-1" ~ "-1",
+                           group == "0" ~ "0",
+                           group == "1" ~ "+1"),
+  group = factor(group, levels = c("-1", "0", "+1"))) |> 
+  
+ ggplot(aes(x = x, y = predicted, color = group, fill = group)) +
+  geom_line(linewidth = 1) +ggtitle("Dark diversity")+ ylab("Number of species")+ xlab("Year")+
+  labs(color = "Temperature")+
+  scale_color_discrete(direction = -1) +
+  scale_fill_discrete(direction = -1)+
+  my_theme
+
+ggeffectSalOBS <- ggeffects::ggpredict(mod_lmerDivComm, terms = c( "year","meanTemp")) |> 
+  as.data.frame() |> 
+  mutate(group = case_when(group == "-1" ~ "-1",
+                           group == "0" ~ "0",
+                          group == "1" ~ "+1"),
+  group = factor(group, levels = c("-1", "0", "+1"))) |> 
+  
+ ggplot(aes(x = x, y = predicted, color = group, fill = group)) +
+  geom_line(linewidth = 1) +
+  ggtitle("Observed diversity")+
+  ylab("Number of species")+ labs(color = "Temperature")+
+  xlab("Year")+
+  scale_color_discrete(direction = -1) +
+  scale_fill_discrete(direction = -1)+
+  my_theme
 
 
-### Fig S5 - Interactions
+ggef <- plot_grid(ggeffectSalOBS , ggeffectTempDD)
+
+#ggsave(here("figs", "SuppFigs", "SuppFigModelSuitComm.png"), bg = "white", units="cm", height =18, width =46, dpi = 300)
+```
+
+
+
+### Fig S6 - Interactions Trait Model
 
 ```{r}
 
@@ -1445,7 +1515,7 @@ combIntFig <- plot_grid(
   yearBSInt,
   yearMobInt,
   
-  labels = c("A", "B", "C", "D"),
+  labels = c("A", "B", "C"),
   ncol = 3
 )
 
@@ -1454,49 +1524,7 @@ combIntFig <- plot_grid(
 
 ```
 
-### Fig S6 - Interactions 
-
-```{r}
-
-ggeffectTempDD <- ggeffects::ggpredict(mod_lmerDivDDComm, terms = c("year", "meanTemp")) |> 
-  as.data.frame() |> 
-  mutate(group = case_when(group == "-1" ~ "-1",
-                           group == "0" ~ "0",
-                           group == "1" ~ "+1"),
-  group = factor(group, levels = c("-1", "0", "+1"))) |> 
-  
- ggplot(aes(x = x, y = predicted, color = group, fill = group)) +
-  geom_line(linewidth = 1) +ggtitle("Dark diversity")+ ylab("Number of species")+ xlab("Year")+
-  labs(color = "Temperature")+
-  scale_color_discrete(direction = -1) +
-  scale_fill_discrete(direction = -1)+
-  my_theme
-
-ggeffectSalOBS <- ggeffects::ggpredict(mod_lmerDivComm, terms = c( "year","meanTemp")) |> 
-  as.data.frame() |> 
-  mutate(group = case_when(group == "-1" ~ "-1",
-                           group == "0" ~ "0",
-                          group == "1" ~ "+1"),
-  group = factor(group, levels = c("-1", "0", "+1"))) |> 
-  
- ggplot(aes(x = x, y = predicted, color = group, fill = group)) +
-  geom_line(linewidth = 1) +
-  ggtitle("Observed diversity")+
-  ylab("Number of species")+ labs(color = "Temperature")+
-  xlab("Year")+
-  scale_color_discrete(direction = -1) +
-  scale_fill_discrete(direction = -1)+
-  my_theme
-
-
-ggef <- plot_grid(ggeffectSalOBS , ggeffectTempDD)
-
-#ggsave(here("figs", "SuppFigs", "SuppFigModelSuitComm.png"), bg = "white", units="cm", height =18, width =46, dpi = 300)
-```
-
-
-
-## Flows - Trait
+## Code for Figure S7 - Flows x Trait
 
 ```{r}
 
@@ -1614,7 +1642,7 @@ summ_flows_sp <- wide_flows %>%
 
 ```
 
-## Body size flows
+## Model Body size flows
 
 ```{r}
 
@@ -1638,7 +1666,7 @@ lm_model <- lm(mean_bs ~ flow + year, data = change_bs)
 
 ```
 
-## Motility
+## Model Motility flows
 
 ```{r}
 
@@ -1661,7 +1689,7 @@ lm_modelMob <- lm(mean_mob ~ year + flow, data = change_mob)
 
 ```
 
-## Figure emmeans
+## Figure S7 - gain-loss trait emmeans
 
 ```{r}
 library(emmeans) 
@@ -1671,7 +1699,7 @@ emm_options(lmerTest.limit = 6000) # to avoid warnings
 library(multcomp)
 library(multcompView)  
  
-# Get emmeans
+
 emm_bs <- emmeans(lm_model, ~ flow)
 
 emm_mob <- emmeans(lm_modelMob, ~ flow)
@@ -1709,7 +1737,52 @@ combEmmeanPlot
 
 ```
 
-## Temporal autocorrelation
+
+```{r}
+trend_colors <- c(
+  "increasing" = "#7B68EE",  # purple
+  "decreasing" = "#228B22",  # green
+  "stable"     = "#999999"   # grey
+)
+
+# Create a new label column that colors each species name
+model_summaries2 <- model_summaries %>% 
+  mutate(
+    sp_label = case_when(
+      trend == "increasing" ~ sprintf("<span style='color:%s;'>%s</span>", trend_colors["increasing"], sp),
+      trend == "decreasing" ~ sprintf("<span style='color:%s;'>%s</span>", trend_colors["decreasing"], sp),
+      TRUE ~ sprintf("<span style='color:%s;'>%s</span>", trend_colors["stable"], sp)
+    )
+  )
+
+# Plot using the colored labels
+fig_slope_lollipop <- ggplot(model_summaries2, aes(x = reorder(sp_label, estimate), y = estimate, color = trend)) +
+  geom_segment(aes(xend = sp_label, y = 0, yend = estimate), linewidth = 0.8) +
+  geom_point(size = 2) +
+  scale_color_manual(values = trend_colors) +
+  coord_flip() +
+  theme_classic(base_size = 16) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    axis.text.y = element_markdown(size = 10),  
+    axis.text.x = element_text(size = 14),
+    axis.title = element_text(size = 20, face = "bold"),
+    plot.title = element_text(size = 22, face = "bold", hjust = 0.5)
+  ) +
+  labs(
+    title = "Species-specific slopes of habitat suitability",
+    x = NULL,
+    y = "Slope estimate (per year)"
+  )
+
+fig_slope_lollipop
+
+#ggsave(here("figs", "SuppFigs", "fig_slope_lollipop.png"), fig_slope_lollipop, width = 14, height = 16, dpi = 300)
+
+```
+
+## Extra - Temporal autocorrelation
 
 ```{r}
 
@@ -1718,10 +1791,10 @@ library(nlme)
 library(broom)
 library(forcats)
 
-# List of all diversity types
+
 div_types <- c("obs", "dark70")
 
-# Create a named list of datasets
+
 div_data_list <-  lapply(div_types, function(d) {
   suitSize_fig2.3 %>%
     group_by(sampling, year) %>%
@@ -1734,7 +1807,7 @@ div_data_list <-  lapply(div_types, function(d) {
   setNames(div_types)
 
 
-# Fit nlme::lme model with AR1 for each dataset
+
 models_ar1 <- map(div_data_list, function(df) {
   nlme::lme(
     n_sp ~ meanTemp * year,
@@ -1762,7 +1835,7 @@ acf(residuals(models_ar1[["obs"]]), main = "ACF: observed diversity")
 ```
 
 
-## Suitability observed x dark
+## Extra - Difference Suitability observed x dark
 
 ```{r}
 
@@ -1776,10 +1849,9 @@ suit_obsdd <- obs_suit %>% dplyr::select(year, sampling, obs, dark) %>%
 suit_obsdd
 ```
 
-## Supp Tables
+## Supplementary Tables
 
-
-## Table sp Suitability/Trait
+## Table S1 - Suitability/Trait
 
 ```{r}
 
@@ -1824,7 +1896,7 @@ combinedSumm %>%
 
 
 
-## Table Community
+## Table S2 - Observed and dark number of species
 
 ```{r}
 
@@ -1874,7 +1946,7 @@ combined %>%
 
 ```
 
-## Sample coverage
+## Table S3 - Sample coverage
 
 ```{r samplecoverage}
 #| warning: false
@@ -1912,7 +1984,7 @@ rmarkdown::paged_table(SampCvTable)
 
 ```
 
-## Sample coverage per site
+## Table S3 - Sample coverage per site
 
 ```{r}
 ## Per site
@@ -1946,6 +2018,4 @@ SampCvTableSite <- SampCvSite$DataInfo %>%
 
 rmarkdown::paged_table(SampCvTableSite)
 
-
 ```
-
